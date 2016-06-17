@@ -1,0 +1,88 @@
+#!/bin/sh
+
+# estfx_office2txt - convert MS Word ond Libreoffice files to text.
+# straydoc - wrapper for managing document search index with Hyper Estraier.
+#
+# Copyright (C) 2016 Amit Ramon <amit.ramon@riseup.net>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# set variables
+PATH=/bin:/usr/bin:$HOME/bin:. ; export PATH
+progname="estfx_office2txt"
+
+
+# check arguments
+if [ $# -lt 1 ]
+then
+    printf '%s: usage: %s infile [outfile]\n' "$progname" "$progname" 1>&2
+    exit 1
+fi
+infile="$1"
+outfile="$2"
+if [ -n "$ESTORIGFILE" ] && [ -f "$ESTORIGFILE" ]
+then
+    infile="$ESTORIGFILE"
+fi
+
+
+# check the input
+if [ "!" -f "$infile" ]
+then
+    printf '%s: %s: no such file\n' "$progname" "$infile" 1>&2
+  exit 1
+fi
+
+
+# initialize the output file
+if [ -n "$outfile" ]
+then
+    rm -f "$outfile"
+fi
+
+
+# function to output
+output()
+{
+    if [ -n "$outfile" ]
+    then
+	cat >> "$outfile"
+    else
+	cat
+    fi
+}
+
+
+# limit the resource
+ulimit -v 262144 -t 10 2> /dev/null
+
+# output the result
+case "$infile" in
+    *.doc)
+	catdoc -w -d utf-8 "$infile" | output
+	;;
+    *.docx)
+	docx2txt < "$infile" 2> /dev/null | output
+	;;
+    *.odt)
+	odt2txt --encoding=UTF-8 --subst=none --width=-1\
+		"$infile" 2> /dev/null | output
+	;;
+    *)
+	printf '<div>!!! UNKNOWN FORMAT !!!</div>\n' | output
+	;;
+esac
+
+exit 0
+

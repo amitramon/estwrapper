@@ -1,0 +1,235 @@
+#!/bin/bash
+
+# straydoc - wrapper for managing document search index with Hyper Estraier.
+#
+# Copyright (C) 2016 Amit Ramon <amit.ramon@riseup.net>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -euf -o pipefail
+
+BASE_DIR=$(realpath $(dirname $0))
+PATH=/bin:/usr/bin:/usr/share/hyperestraier/filter/:$BASE_DIR/filter
+export PATH
+
+COMMON=$BASE_DIR/stray_common.sh
+
+if [[ -r $COMMON ]]; then
+    . $COMMON
+else
+    echo "${0##*/}: ERROR: failed to source file $COMMON" >&2
+    exit 1
+fi
+
+#---------------------------------------------------------------------------
+# Generate a list of all files under the given directory that should be
+# indexed. Filter out files based on the IGNORE_TYPES variable and
+# patterns in a specific EXCLUDE file. Append 'file' information to each
+# file record and write the list to a file.
+# 
+# Parametr 1: the file to which the list is written.
+# Parametr 2: the directory to search.
+#---------------------------------------------------------------------------
+function generate_file_list()
+{
+    local the_file=$1
+    local indexed_dir=$2
+
+    local exclude_file=EXCLUDE	# name of the exlude patterns' file
+    local exclude_self_pattern="/${exclude_file}$" # pattern for excluding the file itself 
+    local exclude_file_path="$indexed_dir/$exclude_file" # full path of the file
+
+    #---------------------------------------------------------------------------
+    # If there's no EXCLUDE file, create one that just excludes itself.
+    # Files matching patterns in this files are filtered out.
+    # TBD: this requires write permission to the searched directory
+    #---------------------------------------------------------------------------
+    [[ ! -f $exclude_file_path ]] && echo $exclude_self_pattern > "$exclude_file_path"
+
+    #---------------------------------------------------------------------------
+    # Generate a grep pattern for filtering out files based
+    # on their type (i.e. suffix).
+    #---------------------------------------------------------------------------
+    printf -v ignore_types '%s|' "${IGNORE_TYPES[@]}"
+    local ignore_pattern="\.("${ignore_types%|}")$"
+
+    #---------------------------------------------------------------------------
+    # Find all non-empty files, filter out files based on the type
+    # pattern and ones that match patterns in the 'EXCLUDE' file, then
+    # append 'file' info to each file-record
+    #---------------------------------------------------------------------------
+    local opts=$-; set +e	# don't exit if grep fails (i.e. nothing found)
+    find "$indexed_dir" -type f -size +0 |\
+	grep -Eiv "$ignore_pattern" |\
+	grep -Eivf "$exclude_file_path" |\
+	xargs -d '\n' -I '{}' -s 1000 file -F '///' '{}' > "$the_file"
+
+    [[ -z ${opts/*e*/} ]] && set -e # restore value
+
+    # Remove the 'spurious' EXCLUDE file
+    [ "$(cat "$exclude_file_path")" = "$exclude_self_pattern" ] && rm "$exclude_file_path"
+}
+
+
+#---------------------------------------------------------------------------
+# Extract all paths of HTML files from list of all files
+# and write them to stdout
+#
+# Parametr 1: full path to the files-list file
+#---------------------------------------------------------------------------
+function extract_html_file_list()
+{
+    sed -n 's#^\(.*[hH][tT][mM][lL]\?\)///.*HTML document.*$#\1#p' "$1"
+}
+
+#---------------------------------------------------------------------------
+# Extract all paths of text file paths from list of all files
+# and write them to stdout
+# Note: this list may include files that are non-plain-text. Such files
+# should be handled later by the special type filters.
+#
+# Parametr 1: full path to the files-list file
+#---------------------------------------------------------------------------
+function extract_text_file_list()
+{
+    #---------------------------------------------------------------------------
+    # Patterns for excluding 'faked' text files (e.g., Rich Text), and for
+    # explicitly including desired types (both matched agains the  output
+    # of the 'file' command).
+    #---------------------------------------------------------------------------    
+    printf -v false_positive '%s|' "${TEXT_FALSE_POSITIVE[@]}"
+    local false_positive_pattern="///.*("${false_positive%|}")"
+
+    printf -v include_types '%s\\|' "${TEXT_INCLUDE_TYPES[@]}"
+    local include_pattern='s#^\(.*\)///.*\('${include_types%\\|}'\).*$#\1#p'
+
+    #---------------------------------------------------------------------------
+    # Read the list, filter the desired files and write to stdout
+    #---------------------------------------------------------------------------    
+
+    local opts=$-; set +e	# don't exit if grep fails (i.e. nothing found)
+    grep -Eiv "$false_positive_pattern" "$1" | sed -n "$include_pattern"
+    [[ -z ${opts/*e*/} ]] && set -e # restore value
+}
+
+#---------------------------------------------------------------------------
+# Read paths of HTML files to index from stdin and index them.
+#
+# Parametr 1: full path to the etraier database directory
+#---------------------------------------------------------------------------
+function index_html_files()
+{
+    estcmd gather $DOC_GATHER_OPTS -fh "$1" -
+}
+
+#---------------------------------------------------------------------------
+# Read paths of Text files to index from stdin and index them.
+# Note: Specific types of non-native text files are handled by converting
+# them to text using specific filters.
+#
+# Parametr 1: full path to the etraier database directory
+#---------------------------------------------------------------------------
+function index_text_files()
+{
+    local fx_pdf="" fx_odt="" fx_doc="" fx_docx=""
+
+    if is_true SRCH_PDF; then fx_pdf="-fx .pdf H@estfxpdftohtml";fi
+    if is_true SRCH_ODT; then fx_odt="-fx .odt T@estfx_office2txt"; fi
+    if is_true SRCH_DOC; then fx_doc="-fx .doc T@estfx_office2txt"; fi
+    if is_true SRCH_DOCX; then fx_docx="-fx .docx T@estfx_office2txt"; fi
+
+    estcmd gather $DOC_GATHER_OPTS -ft \
+	   $fx_pdf $fx_odt $fx_doc $fx_docx "$1" -
+}
+
+#---------------------------------------------------------------------------
+# Generate a list of files to index under the given directory, register
+# them with the estraier database and index them.
+#
+# Parametr 1: full path of the file-list file
+# Parametr 2: full path of the directory to index
+#---------------------------------------------------------------------------
+function _build_index()
+{
+    log_msg "Starting indexing \"$2\""
+
+    #---------------------------------------------------------------------------
+    # extract HTML file paths from list and index them, then do the
+    # same for text files
+    #---------------------------------------------------------------------------
+    extract_html_file_list "$1" | index_html_files "$EST_DB"
+    extract_text_file_list "$1" | index_text_files "$EST_DB"
+}
+
+#---------------------------------------------------------------------------
+# Print list of files that would be indexed under the given directory
+# to stdout.
+# Use for information only, for tuning the include and exclude filters,
+# or for debugging.
+#
+# Parametr 1: full path of the file-list file
+#---------------------------------------------------------------------------
+function _list_files()
+{
+    #---------------------------------------------------------------------------
+    # extract HTML file paths from list and print their names, then do the
+    # same for text files
+    #---------------------------------------------------------------------------
+    extract_html_file_list "$1" 
+    extract_text_file_list "$1" 
+}
+
+#---------------------------------------------------------------------------
+# Main dir processor. Generate a list of files to process and call the
+# processing callback function.
+#
+# Parametr 1: the callback function TBD
+# Parametr 2: full path of the directory to process
+#---------------------------------------------------------------------------
+function process_dir()
+{
+    local callback="$1"
+    local indexed_dir="$2"
+
+    if ! test -d "$indexed_dir"; then
+	log_msg "ERROR: $indexed_dir does not exist. Skipping."
+	return
+    fi
+    
+    local file_list=$(mktemp -t srchlst.XXXXXXXX) || die "Failed to create temporary file."
+    trap "test -e "$file_list" && rm -f '$file_list'" SIGHUP SIGINT SIGPIPE SIGTERM
+    
+    #---------------------------------------------------------------------------
+    # Generate the list of all files and pass it to the callback function
+    #---------------------------------------------------------------------------
+    generate_file_list "$file_list" "$indexed_dir"
+    $callback "$file_list" "$indexed_dir"
+    
+    [ -e "$file_list" ] && rm -f "$file_list" # Remove the temporary list file
+}
+
+#---------------------------------------------------------------------------
+# Update the log file - filter out unnecessary entries, save old log
+# and create a new one.
+#
+# Parametr 1: full path of the directory to index TBD
+#---------------------------------------------------------------------------
+function main_index_build()
+{
+    build_indexes
+    optimize_search_db
+}
+
+
+execute_main doc $*

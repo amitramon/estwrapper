@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# straymail - wrapper for managing mail messages search index
+# with Hyper Estraier.
+#
+# Copyright (C) 2016 Amit Ramon <amit.ramon@riseup.net>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -euf -o pipefail
+
+BASE_DIR=$(realpath $(dirname $0))
+PATH=/bin:/usr/bin:/usr/share/hyperestraier/filter:$BASE_DIR/filter
+export PATH
+
+COMMON=$BASE_DIR/stray_common.sh
+
+if [[ -r $COMMON ]]; then
+    . $COMMON
+else
+    echo "${0##*/}: ERROR: failed to source file $COMMON" >&2
+    exit 1
+fi
+
+
+#---------------------------------------------------------------------------
+# Generate a list of files to index under the given directory, register
+# them with the estraier database and index them.
+#
+# Parametr 1: full path of the directory to index
+#---------------------------------------------------------------------------
+function _build_index()
+{
+    log_msg "Starting indexing \"$1\""
+
+    find "$1" -type f |\
+	estcmd gather $MAIL_GATHER_OPTS "$EST_DB" -
+}
+
+#---------------------------------------------------------------------------
+# Print list of files that would be indexed under the given directory
+# to stdout.
+# Use for information only, for tuning the include and exclude filters,
+# or for debugging.
+#
+# Parametr 1: full path of the file-list file
+#---------------------------------------------------------------------------
+function _list_files()
+{
+    find "$1" -type f
+}
+
+#---------------------------------------------------------------------------
+# Main dir processor. Generate a list of files to process and call the
+# processing callback function.
+#
+# Parametr 1: the callback function to call on the directory
+# Parametr 2: full path of the directory to process
+#---------------------------------------------------------------------------
+function process_dir()
+{
+    local callback="$1"
+    local indexed_dir="$2"
+
+    if ! test -d "$indexed_dir"; then
+	log_msg "ERROR: $indexed_dir does not exist. Skipping."
+	return
+    fi
+
+    $callback "$indexed_dir"
+}
+
+#---------------------------------------------------------------------------
+# Loop over directories and index them.
+#---------------------------------------------------------------------------
+function main_index_build()
+{
+    build_indexes
+    optimize_search_db
+}
+
+#---------------------------------------------------------------------------
+# Start execution 
+#---------------------------------------------------------------------------
+execute_main mail $*
+
