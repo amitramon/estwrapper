@@ -317,7 +317,7 @@ function search_db()
     
     echo "Searching with HyperEstraier"
     echo "Search for what?"
-    read IFS= -r phrase
+    IFS= read -r phrase
 
     local count=0
 
@@ -341,7 +341,7 @@ function human_search_db()
 {
     echo "Searching with HyperEstraier"
     echo "Search for what?"
-    read IFS= -r phrase
+    IFS= read -r phrase
 
     local uri_pattern="URI: file:///"
     
@@ -389,8 +389,8 @@ Build document search index database.
 With no options other than -fst, generates or updates the search
 database.
 
-Default configuration files are seached for in this order: ~/.straydoc.d/straydoc,
-~/.straydoc, /etc/straydoc
+Default configuration files are seached for in this order: 
+~/.estwrapper.d/settings ~/.estwrapper /etc/estwrapper
 EOT
 }
 
