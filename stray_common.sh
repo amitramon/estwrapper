@@ -138,7 +138,8 @@ function build_indexes()
 }
 
 #---------------------------------------------------------------------------
-# Iterate through the list of directoris to index and index files under them.
+# Iterate through the list of directoris to index and list the files
+# that would be indexed.
 #---------------------------------------------------------------------------
 function list_files_to_index()
 {
@@ -202,7 +203,7 @@ function update_readme()
     #---------------------------------------------------------------------------
     # Count types of errors in the build log file
     #---------------------------------------------------------------------------
-    local opts=$-; set +e
+    local opts=$-; set +e	# don't exit if grep fails (i.e. nothing found)
     new_doc_count=$(grep -c '^estcmd: INFO:.*registered$' $buildlog)
     total_error_count=$(grep -c '^estcmd: ERROR:' $buildlog)
     size_error_count=$(grep -c '^estcmd: ERROR:.*exceeding the file size limitation$' $buildlog)
@@ -323,7 +324,7 @@ function search_db()
 
     while read file; do
 	ln -fs "$file" "$RESULTS_DIR"
-	((count++))
+	((count++)) || true	# don't fail because fo the non-zero value of ++
     done < <(estcmd search -max $SRCH_MAX_RESULTS -vx -sfr $EST_DB $phrase |\
                      sed -n 's#.*_lreal.*value=\"\(/.*\)\"/>$#\1#p')
 
