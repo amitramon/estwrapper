@@ -18,7 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-DEFAULT_CONF_FILES=("" "$HOME/.estwrapper.d/settings" "$HOME/.estwrapper" "/etc/estwrapper")
+DEFAULT_CONF_FILES=("" "$HOME/.estwrapper.d/estwrapper.conf"\
+		       "$HOME/.estwrapper.conf" "/etc/estwrapper.conf")
 LOG_TAG=${0##*/}
 USE_SYSLOG=false
 STD_ERR=2			# file dsecriptor pointing to stderr
@@ -44,7 +45,7 @@ README=			# index build summary file
 #---------------------------------------------------------------------------
 function is_true()
 {
-    local val=${!1:-}		# deref arg, test if unset
+    local val=${!1:-}		# dereference arg, test if unset
     val=${val,,}		# normalize to lowercase
     [[ $val = true || $val = yes || $val = 1 ]]
     return $?
@@ -312,19 +313,17 @@ function load_conf()
 #---------------------------------------------------------------------------
 function search_db()
 {
+    local phrase="$1"
+
     local opts=$-; set +f
     rm -fr "${RESULTS_DIR}"/*
     [[ -z ${opts/*f*/} ]] && set -f
-    
-    echo "Searching with HyperEstraier"
-    echo "Search for what?"
-    IFS= read -r phrase
 
     local count=0
 
     while read file; do
 	ln -fs "$file" "$RESULTS_DIR"
-	((count++)) || true	# don't fail because fo the non-zero value of ++
+	((count++)) || true	# don't fail because of the non-zero value of ++
     done < <(estcmd search -max $SRCH_MAX_RESULTS -vx -sfr $EST_DB $phrase |\
                      sed -n 's#.*_lreal.*value=\"\(/.*\)\"/>$#\1#p')
 
@@ -336,14 +335,23 @@ function search_db()
 }
 
 #---------------------------------------------------------------------------
+# Search the database for the given phrase. Files found are symlinked
+# in the results directory.
+#---------------------------------------------------------------------------
+function search_db_prompt()
+{
+    local phrase=""
+    echo "Enter a phrase to search: "
+    IFS= read -r phrase
+    search_db $phrase
+}
+    
+#---------------------------------------------------------------------------
 # Search the database for the given phrase, print results to stdout.
 #---------------------------------------------------------------------------
 function human_search_db()
 {
-    echo "Searching with HyperEstraier"
-    echo "Search for what?"
-    IFS= read -r phrase
-
+    local phrase="$1"
     local uri_pattern="URI: file:///"
     
     while read line; do
@@ -379,12 +387,13 @@ Build document search index database.
   -B              view the last build log
   -f <file>       specify an alternate configuration file
   -h              display this help and exit
-  -H              search, print human-readable results
+  -H <phrase>     search, print human-readable results
   -I              print brief database information
   -l              list the files that would be indexed
   -L              list database indexed files
   -s              log messages to syslog (default: stdout)
-  -S              search, symlink found files in results dir
+  -S <phrase>     search, symlink found files in results dir
+  -M              same as '-S', but the user is prompted for a phrase.
   -t <tag>        tag log messages with this tag (default: script name)
 
 With no options other than -fst, generates or updates the search
@@ -403,11 +412,12 @@ function main()
 {
     OPTIND=1 # Reset just to be on the safe side
     local only_list_files=false print_db_summary=false local print_db_list=false \
-	  do_search=false local do_human_search=false local view_buildlog=false
+	  do_search=false local do_human_search=false local view_buildlog=false \
+	  search_phrase="" do_search_prompt=false
     
     init_log
 
-    while getopts "hf:lst:LISHB" opt $*; do
+    while getopts "hf:lst:LIS:MH:B" opt $*; do
 	case "$opt" in
             h)  usage >&2
 		exit 0
@@ -426,9 +436,11 @@ function main()
 		;;
 	    I)  print_db_summary=true
 		;;
-	    S)  do_search=true
+	    S)  do_search=true; search_phrase="$OPTARG"
 	        ;;
-	    H)  do_human_search=true
+	    M)  do_search_prompt=true
+		;;
+	    H)  do_human_search=true; search_phrase="$OPTARG"
 	        ;;
 	    B)  view_buildlog=true
 	        ;;
@@ -466,11 +478,12 @@ function main()
     if $print_db_summary; then db_summary $EST_DB; fi
     if $print_db_list; then db_list $EST_DB; fi
     if $only_list_files; then list_files_to_index; fi
-    if $do_search; then search_db; fi
-    if $do_human_search; then human_search_db; fi
+    if $do_search; then search_db "$search_phrase"; fi
+    if $do_search_prompt; then search_db_prompt; fi
+    if $do_human_search; then human_search_db "$search_phrase"; fi
     
     if $print_db_summary || $print_db_list || $only_list_files ||\
-	    $do_search || $do_human_search
+	    $do_search || $do_human_search || $do_search_prompt
     then
 	exit
     fi
