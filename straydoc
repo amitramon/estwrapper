@@ -46,7 +46,7 @@ function generate_file_list()
     local the_file=$1
     local indexed_dir=$2
 
-    local exclude_file=EXCLUDE	# name of the exlude patterns' file
+    local exclude_file=$EXCLUDE_FILE # name of the exlude patterns' file
     local exclude_self_pattern="/${exclude_file}$" # pattern for excluding the file itself 
     local exclude_file_path="$indexed_dir/$exclude_file" # full path of the file
 
@@ -150,7 +150,7 @@ function index_text_files()
     if is_true SRCH_DOCX; then fx_docx="-fx .docx T@estfx_office2txt"; fi
 
     estcmd gather $DOC_GATHER_OPTS -ft \
-	   $fx_pdf $fx_odt $fx_doc $fx_docx "$1" -
+	   $fx_pdf $fx_odt $fx_doc $fx_docx $USER_FILTERS "$1" -
 }
 
 #---------------------------------------------------------------------------
