@@ -381,26 +381,23 @@ function update_search_db()
 function usage()
 {
     cat << EOT
-Usage: ${0##*/} [OPTION]....
+Usage: ${0##*/} [OPTION]...
 Build document search index database.
 
-  -B              view the last build log
-  -f <file>       specify an alternate configuration file
   -h              display this help and exit
   -H <phrase>     search, print human-readable results
+  -S <phrase>     search, symlink found files in results dir
+  -P              same as '-S', but the user is prompted for a phrase
+  -f <file>       specify an alternate configuration file
+  -s              log messages to syslog (default: stdout)
+  -t <tag>        tag log messages with this tag (default: script name)
+  -B              view the last build log
   -I              print brief database information
   -l              list the files that would be indexed
   -L              list database indexed files
-  -s              log messages to syslog (default: stdout)
-  -S <phrase>     search, symlink found files in results dir
-  -M              same as '-S', but the user is prompted for a phrase.
-  -t <tag>        tag log messages with this tag (default: script name)
 
 With no options other than -fst, generates or updates the search
 database.
-
-Default configuration files are seached for in this order: 
-~/.estwrapper.d/settings ~/.estwrapper /etc/estwrapper
 EOT
 }
 
@@ -417,7 +414,7 @@ function main()
     
     init_log
 
-    while getopts "hf:lst:LIS:MH:B" opt $*; do
+    while getopts "hf:lst:LIS:PH:B" opt $*; do
 	case "$opt" in
             h)  usage >&2
 		exit 0
@@ -438,7 +435,7 @@ function main()
 		;;
 	    S)  do_search=true; search_phrase="$OPTARG"
 	        ;;
-	    M)  do_search_prompt=true
+	    P)  do_search_prompt=true
 		;;
 	    H)  do_human_search=true; search_phrase="$OPTARG"
 	        ;;
