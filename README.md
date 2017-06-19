@@ -3,8 +3,8 @@
 **estwrapper** is a friendly front-end to
 [Hyper Estraier](http://fallabs.com/hyperestraier/), a full-text
 search system. It allows one to easily scan and index her documents,
-thus creating a search-able database. This database can then be
-searched either using a web interface powered by a CGI script provided
+thus creating a searchable database. This database can then be
+searched using either a web interface powered by a CGI script provided
 by Hyper Estraier, or from the command line using **estwrapper**
 commands.
 
@@ -23,10 +23,10 @@ tool:
   command line, and it provides a convenient interface for integrating
   it with other tools, for example with the Mutt email client.
 * **Database Statistics**: You can retrieve various statistics about
-  the search database, such as which files are indexed, data of the
-  last database update and so on.
+  the search database, such as which files are indexed, information of
+  the last database update and so on.
 
-**estwrapper** includes two main tools, similar to each other but
+**estwrapper** provides two main tools, similar to each other but
 slightly different in operation: `straydoc`  which is used for
 indexing and searching documents, and `straymail` which is specific
 for indexing and searching email messages (stored in Maildir format).
@@ -38,12 +38,13 @@ for indexing and searching email messages (stored in Maildir format).
   * [Filters](#filters)
 * [Usage](#usage)
   * [Creating or Updating a database](#creating-or-updating-a-database)
-  * [Viewing database information](#Viewing-database-information)
+  * [Viewing database information](#viewing-database-information)
   * [Searching the database](#searching-the-database)
 * [Searching Methods in detail](#searching-methods-in-detail)
   * [Searching from the command line](#searching-from-the-command-line)
   * [Searching using a Web Interface](#searching-using-a-web-interface)
-  * [Searching email messages from within Mutt](#searching-email-messages-from-within-Mutt)
+  * [Searching email messages from within Mutt](#searching-email-messages-from-within-mutt)
+* [Requirements](#requirements)
 * [Credits](#credits)
 * [License](#license)
 
@@ -58,15 +59,15 @@ You can install **estwrapper** using the following steps:
 2. If you want to use the `estfx_office2txt` filter script provided by
    **estwrapper**, place it together with the other scripts above, or
    add its directory to the filters' path using the configuration
-   variable FILTERS_PATH.
+   variable FILTER_PATH.
 
-3. Create directories for the databases you wish to
-   create. Recommended structure is to create a main `~/.estwrapper.d`
+3. Create directories for the databases you wish to create. My
+   recommended structure is to create a main `~/.estwrapper.d`
    directory that will contain a separate sub-directory for each
    database, as well as the configuration file (see below).
    
    For example, to create one database for your documents and one for
-   your email messages it is recommended that you create the following
+   your email messages you might want to create the following
    directories: the main directory `$HOME/.estwrapper.d`, a directory
    for your documents' index `$HOME/.estwrapper.d/doc_db` and a
    directory for your email messages' index
@@ -86,7 +87,8 @@ You can install **estwrapper** using the following steps:
    previous section you should also modify the corresponding settings
    in the configuration file.
    
-   Here is an example of the settings that you must inspect:
+   Here is an example of the settings that you should inspect and
+   possibly modify:
 	   
 	   # databases location
        DOC_SEARCH_DB="$HOME/.estwrapper.d/doc_db"
@@ -95,13 +97,13 @@ You can install **estwrapper** using the following steps:
        DOC_DIRS=("$HOME/Documents" "$HOME/Dropbox")
        MAIL_DIRS=("$HOME/Mail/main/INBOX" "$HOME/Mail/main/Sent")
 
-   Another variable that you may want to define is the FILTER_PATH
-   which defines the search path for filters. It has the same syntax
-   as the syestem's PATH shell variable. For example:
+   Another variable that you may want to define is FILTER_PATH which
+   defines the search path for filters. It has the same syntax as the
+   system's PATH shell variable. For example:
 
        FILTER_PATH=$HOME/bin/filters:$HOME/bin
 
-By this the installation is complete, except for possible fine
+This should complete the installation, except for some possible fine
 tuning. Assuming you have already installed Hyper Estraier and
 possibly the utilities required for the [filters](#filters) you
 configured, you can now run either `straydoc` for indexing your
@@ -112,9 +114,9 @@ documents or `straymail` for indexing your email messages.
 System's configuration is read from configuration file that is
 searched for in the following locations, in that order:
 
-1. ~/.estwrapper.d/estwrapper.conf
-2. ~/.estwrapper.conf
-3. /etc/estwrapper.conf
+1. `~/.estwrapper.d/estwrapper.conf`
+2. `~/.estwrapper.conf`
+3. `/etc/estwrapper.conf`
 
 It is also possible to specify a different file using the `-f` command
 line option.
@@ -127,32 +129,26 @@ The configuration settings include:
 * [Filter](#filters) definitions.
 
 The configuration file is documented, look at it for additional
-information regarding configuration options.
+information regarding available configuration options.
 
 ### Filters
 
-Hyper Estraier can process directly only text and HTML files. In order
-to process files of different types they need to be first converted to
-either of these types. Hyper Estraier can convert files on the fly and
-process them, provided you supply it with an appropriate 'filter' for
-the file type you want it to process and instruct it to use it using
-command line options.
+Hyper Estraier can process directly only text, HTML and email RFC 822
+files. In order to process files of other types they need to be
+converted to either text or HTML. Hyper Estraier can convert files on
+the fly and then process them, provided you supply it with an
+appropriate 'filter' for the file type you want it to process and
+instruct it to use (which you can do using settings in
+**estwrapper**'s configuration file).
 
 **estwrapper** comes with filter script for LibreOffice Writer files
 and Microsoft Office doc and docx files, that can be enabled or
 disabled using configuration settings. Additionally you can use the
 configuration option `USER_FILTERS` in order to set additional filters
-(In also worth looking at the filters that come with Hyper Estraier),
+(It's also worth looking at the filters that come with Hyper Estraier),
 
-Note that the filter script in this package require the following
-utilities to be available:
-
-* `pdftotext` for PDF files;
-* `odt2txt` for ODT files;
-* `catdoc` for DOC files;
-* `docx2txt` for  DOCX files;
-
-These tools should be available on most Linux distributions.
+See the [Requirements](#requirements) section for information
+regarding the tools that are required for **estwrapper**'s filter script.
 
 ## Usage
 
@@ -160,16 +156,16 @@ These tools should be available on most Linux distributions.
 indexing documents and `straymail` for indexing email messages. Aside
 for some differences in the [configuration](#configuration) settings
 the usage of these two tools is the same. Hence, in the following
-sections, I'll use the token `straydoc` to refer to either of these
-tools.
+sections, I'll use the token `straydoc` for referring to either of
+these tools.
 
 ### Creating or Updating a database
 
 To create (or update) a search database run `straydoc` with no
-option switches or with only a combination of the following options:
+option switches or with a combination of only the following options:
 
 * `-f <file>` : select a non-default configuration file. This switch
-  can be used in combination of any other switches.
+  can be used in combination with any other switches.
 * `-s` : log messages to syslog, instead of printing to stderr.
 * `-t` <name> : use `name` to tag log messages, instead of the script
   name.
@@ -201,6 +197,9 @@ See the following section for more details.
 
 ## Searching Methods in detail
 
+The following sections describe different ways for searching the
+document or email databases.
+
 ### Searching from the command line
 
 You can search your documents from the command line with the following
@@ -208,26 +207,26 @@ command:
 
     straydoc -H some-search-pharse
 	
-the results will be printed to the standard output.
+the results will be printed to the standard output in a human readable
+format.
 
-You can also use the command slightly differently:
+If you use the following command:
 
     straydoc -S some-search-pharse
 
-in which case a symbolic link for each file found will be created in
-the directory defined by the `DOC_RESULTS` configuration variable. (if
-you would use `straymail`. the links will be created in
-`MAIL_RESULTS`.)
+instead of printing the results a symbolic link for each file found
+will be created in the directory defined by the `DOC_RESULTS`
+configuration variable. (if you would use `straymail`, the links will
+be created in `MAIL_RESULTS`.)
 
-Another option is to use:
+You could also use:
 
-	straydoc -M
+	straydoc -P
 	
-This works similarly to the `-S` option, the only differently is that
-the user is prompted for the search phrase instead of having to
-provide it in advance. This option might be useful when `straymail`
+which works similarly to the `-S` option, except that, instead of
+supplying the search phrase as an argument, you'll be interactively
+prompted to supply it. This option might be useful when `straymail`
 (or `straydoc`) is called by another tool and needs to be interactive.
-
 
 Note:
 See [Hyper Estraier User's Guide](http://fallabs.com/hyperestraier/uguide-en.html)
@@ -243,7 +242,7 @@ server. This interface is documented in the
 However, in short, this is what one needs to do:
 
 1. Locate the files `estseek.cgi`, `estseek.conf`, `estseek.help`, `estseek.tmpl`
-   and `estseek.top`, and copy them to your CGI director;
+   and `estseek.top`, and copy them to your CGI directory;
 2. Edit `estseek.conf`, and modify the `indexname` variable to point
    to your index database directory. This should be a directory named
    `est_db`, located under the directory specified by the
@@ -253,13 +252,13 @@ However, in short, this is what one needs to do:
 
 #### Open Files by local URLs
 
-As a side note, some browsers won't open, by default, local files
-pointed to by URLs found on web pages for security reasons. This
-behavior won't let you open the files found by the search directly
-from the browser.
+As a side note, some browsers won't, by default, open local files
+pointed to by URLs found on web pages for security reasons. When this
+is the case the browser won't let you open the files found by the
+search directly when you click on them.
 
-In Firefox you can workaround this by modifying the browser's
-configuration, using the following instructions:
+In Firefox you can workaround this by modifying its configuration,
+using the following instructions:
 
 Close all instances of Firefox, then open
 ~/.mozilla/firefox/<profile_name>/prefs.js in your favorite editor,
@@ -269,36 +268,73 @@ and add the following lines:
 	user_pref("capability.policy.localfilelinks.sites", "http://localhost http://127.0.0.1");
 	user_pref("capability.policy.policynames", "localfilelinks");
 
-Another option is to use an add-on such as
-[LocalLink](http://locallink.mozdev.org/) or similar.
+Another option, not requiring fiddling with Firefox's configuration,
+is to use an add-on such as [LocalLink](http://locallink.mozdev.org/)
+or similar.
 
 ### Searching email messages from within Mutt
 
-You can use `straymail` to search email messages from within Mutt
-assuming your emails are stored locally in Maildir format.
+If you store your emails locally in Maildir format, you can easily
+search them with `straymail` from within Mutt.
 
-The idea is as follows:
+One simple way to do that is using a Mutt macro that calls `straymail
+-P`, which will prompts the user for a search phrase, search for it
+and symbolicly link the messages found in the directory defined by
+**estwrapper**'s MAIL_RESULTS configuration variable.
 
-A Mutt's macro calls `straymail -P`. The user is then prompted for a
-search pharse, and after providing it and pressing `Enter`,
-`straymail` searches the index and creates symbolic links for the files
-found in a special directory. The user can use Mutt to browse this
-directory and read the email messages it contains.
+You can then point Mutt to this directory and browse the email
+messages it contains.
 
-Here is an example for such a macro:
+Here is one possible example for such a macro:
 
     macro generic,index,pager <f6> "<shell-escape>straymail -P<enter>\
     <change-folder><kill-line>=search-results<enter>" \
-    "search with Hyper Estraier"
+    "search with estwrapper"
 
-Note that this macro, after invoking `straymail`, changes the mail
-folder to `=search-results`, which is a directory named
+Note that after this specific macro runs `straymail` it changes the
+current mail folder to `=search-results`, which is a directory named
 `search-results` relative to Mutt's `folder`, the default location of
-mailboxes.
+Mutt's mailboxes. The `search-results` directory should be a standard
+Maildir folder created beforehand.
 
-Also note that the only detail which is dependent on Mail User
-Agent's specifics is the ability to run macros, so in principle it should be
-possible to apply this technique to other MUAs as well.
+To be complete, this is how the search results directory is defined in
+**estwrapper**'s configuration file:
+
+    MAIL_RESULTS=$HOME/Mail/search-results/cur
+
+and these are the corresponding settings it Mutt's configuration file:
+
+    set folder = ~/Mail
+    mailboxes +search-results
+
+You can create the `search-results` directory with a command such as
+`maildirmake`, thus making sure it is in the correct format.
+
+Also note that the only detail which is dependent on an Email client's
+specifics is the ability to run macros, so in principle it should be
+possible to apply this technique to other Email clients as well.
+
+## Requirements
+
+Obviously, the Hyper Estraier system must be installed. You can
+install it from your Linux distribution package manager, or obtain it
+from the main
+[Hyper Estraier web site](http://fallabs.com/hyperestraier/). On
+Debian the package is, surprise, `hyperestraier`.
+
+**estwrapper**'s filter script, that can be used to convert
+LibreOffice Writer and Microsoft Office doc and docx files to text to
+enable indexing them, needs the following utilities:
+
+* `odt2txt` for ODT files;
+* `catdoc` for DOC files;
+* `docx2txt` for  DOCX files;
+
+On Debian they are provided by packages with similar names.
+
+Hyper Estraier provide some filters for processing several types of
+files, including man files and PDF files. For PDF files you'll need to
+have `pdftotext`, which on Debian comes with the `poppler-utils` package.
 
 ## Credits
 
