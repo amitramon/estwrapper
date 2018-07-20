@@ -20,8 +20,8 @@
 
 set -euf -o pipefail
 
-BASE_DIR=$(realpath $(dirname $0))
-PATH=/bin:/usr/bin:/usr/share/hyperestraier/filter:$BASE_DIR/filter
+BASE_DIR=$(dirname $(realpath $0))
+PATH=/bin:/usr/local/bin:/usr/bin:/usr/local/share/hyperestraier/filter:/usr/share/hyperestraier/filter:$BASE_DIR/filter
 export PATH
 
 COMMON=$BASE_DIR/stray_common.sh
